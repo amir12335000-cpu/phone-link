@@ -80,10 +80,7 @@ class MainActivity : Activity() {
         addButton("مجوز ادامه") {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-    
-        
-       
-        }
+                    
         root.addView(info)
         setContentView(root)
     }
