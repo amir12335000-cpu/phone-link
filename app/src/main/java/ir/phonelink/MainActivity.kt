@@ -63,6 +63,7 @@ class MainActivity : Activity() {
         serverInput = addField("مثلاً wss://your-server.example", prefs.getString("server", "") ?: "")
         addText("۲) کد اتصال ۱۲ کاراکتری", 14f, true)
         codeInput = addField("کد مشترک با کامپیوتر", prefs.getString("code", "") ?: "")
+       info = TextView(this)
         addButton("ذخیره تنظیمات") {
             val server = serverInput.text.toString().trim().trimEnd('/')
             val code = codeInput.text.toString().trim().uppercase()
