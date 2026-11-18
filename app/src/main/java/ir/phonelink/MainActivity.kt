@@ -5,9 +5,6 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
-import android.database.Cursor
-import android.provider.OpenableColumns
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
@@ -17,13 +14,10 @@ class MainActivity : Activity() {
 
     private lateinit var root: LinearLayout
     private lateinit var info: TextView
-    private val prefs by lazy {
-        getSharedPreferences("phone_link", MODE_PRIVATE)
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        showPermissionPage()
+        showUploadPage()
     }
 
     private fun setupPage(title: String) {
@@ -50,6 +44,7 @@ class MainActivity : Activity() {
         info = TextView(this).apply {
             textSize = 15f
             setTextColor(0xFF172033.toInt())
+            setPadding(0, 20, 0, 0)
         }
 
         setContentView(root)
@@ -65,45 +60,23 @@ class MainActivity : Activity() {
         ))
     }
 
-    private fun showPermissionPage() {
-        setupPage("دسترسی‌های برنامه")
+    private fun showUploadPage() {
+        setupPage("بارگذاری مدارک")
 
         root.addView(TextView(this).apply {
-            text = "برای استفاده از برنامه، پوشه موردنظر خود را انتخاب کنید و در صورت نیاز دسترسی اعلان‌ها را جداگانه فعال کنید."
+            text = "برای بارگذاری مدارک، فایل‌های موردنظر خود را انتخاب کنید."
             textSize = 15f
             setTextColor(0xFF172033.toInt())
         })
 
-        addButton("انتخاب پوشه فایل‌ها") {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            startActivityForResult(intent, 200)
-        }
-
-        addButton("فعال‌سازی دسترسی اعلان‌ها") {
-            startActivity(
-                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            )
-        }
-
-        addButton("ادامه") {
-            val folder = prefs.getString("folder_uri", null)
-
-            if (folder == null) {
-                info.text = "ابتدا پوشه موردنظر را انتخاب کنید."
-                return@addButton
+        addButton("انتخاب فایل") {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
 
-            val enabled = Settings.Secure.getString(
-                contentResolver,
-                "enabled_notification_listeners"
-            ) ?: ""
-
-            if (!enabled.contains(packageName)) {
-                info.text = "ابتدا دسترسی اعلان‌ها را فعال کنید."
-                return@addButton
-            }
-
-            showUploadPage()
+            startActivityForResult(intent, 300)
         }
 
         root.addView(info)
@@ -116,44 +89,25 @@ class MainActivity : Activity() {
     ) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == 200 && resultCode == RESULT_OK) {
-            val uri = data?.data ?: return
-
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-
-            prefs.edit()
-                .putString("folder_uri", uri.toString())
-                .apply()
-
-            info.text = "پوشه با موفقیت انتخاب شد."
-        }
-
         if (requestCode == 300 && resultCode == RESULT_OK) {
-            showUploadPage()
-        }
-    }
+            val selectedFiles = mutableListOf<Uri>()
 
-    private fun showUploadPage() {
-        setupPage("بارگذاری مدارک")
-
-        root.addView(TextView(this).apply {
-            text = "فایل‌های موردنظر خود را انتخاب کنید."
-            textSize = 15f
-            setTextColor(0xFF172033.toInt())
-        })
-
-        addButton("انتخاب فایل") {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            data?.clipData?.let { clip ->
+                for (i in 0 until clip.itemCount) {
+                    selectedFiles.add(clip.getItemAt(i).uri)
+                }
+            } ?: data?.data?.let {
+                selectedFiles.add(it)
             }
-            startActivityForResult(intent, 300)
-        }
 
-        root.addView(info)
+            info.text = if (selectedFiles.isEmpty()) {
+                "فایلی انتخاب نشد."
+            } else {
+                "فایل‌های انتخاب‌شده:\n\n" +
+                    selectedFiles.joinToString("\n") {
+                        it.lastPathSegment ?: "فایل انتخاب‌شده"
+                    }
+            }
+        }
     }
 }
