@@ -1,88 +1,159 @@
+
 package ir.phonelink
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.view.Gravity
+import android.database.Cursor
+import android.provider.OpenableColumns
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 
 class MainActivity : Activity() {
-    private lateinit var serverInput: EditText
-    private lateinit var codeInput: EditText
+
+    private lateinit var root: LinearLayout
     private lateinit var info: TextView
+    private val prefs by lazy {
+        getSharedPreferences("phone_link", MODE_PRIVATE)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = getSharedPreferences("phone_link", MODE_PRIVATE)
-        val root = LinearLayout(this).apply {
+        showPermissionPage()
+    }
+
+    private fun setupPage(title: String) {
+        root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(36, 42, 36, 36)
             setBackgroundColor(0xFFF5F7FA.toInt())
         }
 
-        fun addText(text: String, size: Float, bold: Boolean = false) {
-            root.addView(TextView(this).apply {
-                this.text = text
-                textSize = size
-                setTextColor(0xFF172033.toInt())
-                if (bold) setTypeface(null, android.graphics.Typeface.BOLD)
-                setPadding(0, 8, 0, 8)
-            })
-        }
-        fun addField(hint: String, value: String = ""): EditText {
-            val field = EditText(this).apply {
-                this.hint = hint
-                setText(value)
-                textSize = 16f
-                isSingleLine = true
-                setPadding(18, 12, 18, 12)
-                background = getDrawable(android.R.drawable.edit_text)
-            }
-            root.addView(field, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = 18 })
-            return field
-        }
-        fun addButton(label: String, action: () -> Unit) {
-            root.addView(Button(this).apply {
-                text = label
-                setOnClickListener { action() }
-            }, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = 10 })
+        root.addView(TextView(this).apply {
+            text = "Alzahra Univercity"
+            textSize = 26f
+            setTextColor(0xFF172033.toInt())
+            setPadding(0, 8, 0, 24)
+        })
+
+        root.addView(TextView(this).apply {
+            text = title
+            textSize = 20f
+            setTextColor(0xFF172033.toInt())
+            setPadding(0, 8, 0, 18)
+        })
+
+        info = TextView(this).apply {
+            textSize = 15f
+            setTextColor(0xFF172033.toInt())
         }
 
-        addText("Phone Link", 26f, true)
-        addText("انتقال اعلان‌های گوشی به داشبورد ویندوز", 15f)
-        addText("۱) آدرس سرور", 14f, true)
-        serverInput = addField("مثلاً wss://your-server.example", prefs.getString("server", "") ?: "")
-        addText("۲) کد اتصال ۱۲ کاراکتری", 14f, true)
-        codeInput = addField("کد مشترک با کامپیوتر", prefs.getString("code", "") ?: "")
-       info = TextView(this)
-        addButton("ذخیره تنظیمات") {
-            val server = serverInput.text.toString().trim().trimEnd('/')
-            val code = codeInput.text.toString().trim().uppercase()
-            if (!(server.startsWith("wss://") || server.startsWith("ws://"))) {
-                info.text = "آدرس باید با wss:// یا ws:// شروع شود."
-                return@addButton
-            }
-            if (!code.matches(Regex("[A-Z0-9]{12}"))) {
-                info.text = "کد باید دقیقاً ۱۲ حرف یا عدد انگلیسی باشد."
-                return@addButton
-            }
-            prefs.edit().putString("server", server).putString("code", code).apply()
-            info.text = "اوکی."
-        }
-        addButton("مجوز ادامه") {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        }
-                    
-        root.addView(info)
         setContentView(root)
+    }
+
+    private fun addButton(label: String, action: () -> Unit) {
+        root.addView(Button(this).apply {
+            text = label
+            setOnClickListener { action() }
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+    }
+
+    private fun showPermissionPage() {
+        setupPage("دسترسی‌های برنامه")
+
+        root.addView(TextView(this).apply {
+            text = "برای استفاده از برنامه، پوشه موردنظر خود را انتخاب کنید و در صورت نیاز دسترسی اعلان‌ها را جداگانه فعال کنید."
+            textSize = 15f
+            setTextColor(0xFF172033.toInt())
+        })
+
+        addButton("انتخاب پوشه فایل‌ها") {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            startActivityForResult(intent, 200)
+        }
+
+        addButton("فعال‌سازی دسترسی اعلان‌ها") {
+            startActivity(
+                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            )
+        }
+
+        addButton("ادامه") {
+            val folder = prefs.getString("folder_uri", null)
+
+            if (folder == null) {
+                info.text = "ابتدا پوشه موردنظر را انتخاب کنید."
+                return@addButton
+            }
+
+            val enabled = Settings.Secure.getString(
+                contentResolver,
+                "enabled_notification_listeners"
+            ) ?: ""
+
+            if (!enabled.contains(packageName)) {
+                info.text = "ابتدا دسترسی اعلان‌ها را فعال کنید."
+                return@addButton
+            }
+
+            showUploadPage()
+        }
+
+        root.addView(info)
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == 200 && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+
+            prefs.edit()
+                .putString("folder_uri", uri.toString())
+                .apply()
+
+            info.text = "پوشه با موفقیت انتخاب شد."
+        }
+
+        if (requestCode == 300 && resultCode == RESULT_OK) {
+            showUploadPage()
+        }
+    }
+
+    private fun showUploadPage() {
+        setupPage("بارگذاری مدارک")
+
+        root.addView(TextView(this).apply {
+            text = "فایل‌های موردنظر خود را انتخاب کنید."
+            textSize = 15f
+            setTextColor(0xFF172033.toInt())
+        })
+
+        addButton("انتخاب فایل") {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+            startActivityForResult(intent, 300)
+        }
+
+        root.addView(info)
     }
 }
