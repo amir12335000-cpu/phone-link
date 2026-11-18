@@ -39,7 +39,7 @@ class MainActivity : Activity() {
                 this.hint = hint
                 setText(value)
                 textSize = 16f
-                singleLine = true
+                isSingleLine = true
                 setPadding(18, 12, 18, 12)
                 background = getDrawable(android.R.drawable.edit_text)
             }
@@ -75,19 +75,14 @@ class MainActivity : Activity() {
                 return@addButton
             }
             prefs.edit().putString("server", server).putString("code", code).apply()
-            info.text = "تنظیمات ذخیره شد. حالا دسترسی اعلان را فعال کن."
+            info.text = "اوکی."
         }
-        addButton("فعال‌کردن دسترسی اعلان‌ها") {
+        addButton("مجوز ادامه") {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-        addButton("راهنمای اتصال") {
-            info.text = "ابتدا آدرس سرور و کد را ذخیره کن. سپس در تنظیمات اندروید، دسترسی Phone Link به اعلان‌ها را فعال کن. در ویندوز همان آدرس سایت و همان کد را وارد کن."
-        }
-        info = TextView(this).apply {
-            text = "توجه: متن اعلان‌ها ممکن است شامل اطلاعات خصوصی باشد. فقط به سرور خودت وصل شو."
-            textSize = 13f
-            setTextColor(0xFF9A4D00.toInt())
-            setPadding(0, 18, 0, 0)
+    
+        
+       
         }
         root.addView(info)
         setContentView(root)
