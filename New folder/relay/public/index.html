@@ -1,0 +1,17 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><title>Phone Link Dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#eef4ff;font-family:Tahoma,Arial,sans-serif}main{max-width:850px;margin:auto;padding:25px 16px}.card{background:#142137;border:1px solid #2a3b55;border-radius:17px;padding:18px;margin:14px 0}h1{font-size:22px}h2{font-size:16px}.muted{color:#9cafc8;font-size:12px;line-height:1.9}.row{display:flex;gap:10px;flex-wrap:wrap}input{flex:1;min-width:200px;padding:13px;border-radius:10px;border:1px solid #33445f;background:#0b1628;color:white;font-size:16px}button{padding:13px 18px;border:0;border-radius:10px;background:#74e4bd;color:#08251d;font-weight:bold;cursor:pointer}.status{font-size:12px;color:#b9cbe0}.event{padding:13px;margin-top:10px;border-radius:12px;background:#0b1729;border:1px solid #2a3b55}.event b{display:block;margin-bottom:7px}.event small{display:block;color:#9cafc8;margin-top:7px;direction:ltr;text-align:right}.badge{display:inline-block;padding:6px 10px;border-radius:20px;background:#23364f;font-size:12px}
+</style></head><body><main><h1>🔔 Phone Link — داشبورد ویندوز</h1>
+<section class="card"><h2>اتصال به گوشی</h2><div class="row"><input id="code" maxlength="12" placeholder="کد ۱۲ کاراکتری گوشی"><button id="connect">اتصال</button></div><p class="status" id="status">متصل نیست</p><p class="muted">همین آدرس را روی گوشی و کامپیوتر باز کن. کد باید با کد ذخیره‌شده در اپ گوشی یکسان باشد.</p></section>
+<section class="card"><h2>اعلان‌های دریافتی <span class="badge" id="count">۰</span></h2><div id="events"><p class="muted" id="empty">هنوز اعلانی دریافت نشده است.</p></div></section>
+<p class="muted">اعلان‌ها فقط در زمان اتصال زنده نمایش داده می‌شوند و روی سرور ذخیره نمی‌شوند. محتوای اعلان‌ها می‌تواند خصوصی باشد؛ سرور خودت را میزبانی کن.</p>
+</main><script>
+const $=id=>document.getElementById(id);let ws=null,n=0;
+$("connect").onclick=()=>{const code=$("code").value.trim().toUpperCase();if(!/^[A-Z0-9]{12}$/.test(code)){alert("کد باید ۱۲ کاراکتر باشد.");return}
+if(ws)ws.close();const p=location.protocol==="https:"?"wss:":"ws:";ws=new WebSocket(p+"//"+location.host);
+ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"computer",code}));
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="joined")$("status").textContent="متصل؛ منتظر اعلان گوشی";if(m.type==="peer")$("status").textContent="گوشی متصل شد";if(m.type==="peer-left")$("status").textContent="گوشی قطع شد";if(m.type==="error")alert(m.text);if(m.type==="event")add(m)};
+ws.onclose=()=>{$("status").textContent="ارتباط قطع شد"};
+};
+function add(m){$("empty").remove();n++;$("count").textContent=String(n);const d=document.createElement("div");d.className="event";const b=document.createElement("b"),t=document.createElement("div"),s=document.createElement("small");b.textContent=m.title||"اعلان";t.textContent=m.body||"";s.textContent=(m.app||"Android")+" • "+new Date(m.time).toLocaleString("fa-IR");d.append(b,t,s);$("events").prepend(d);}
+</script></body></html>
